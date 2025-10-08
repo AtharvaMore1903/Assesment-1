@@ -8,13 +8,10 @@ function App() {
     foreignSalesCount: '',
     averageSaleAmount: ''
   });
-  
-  const [results, setResults] = useState({
-    avalphaTechnologiesCommission: 0,
-    competitorCommission: 0
-  });
 
+  const [results, setResults] = useState(null); 
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(''); 
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -25,27 +22,47 @@ function App() {
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    setIsLoading(true);
-    
-    // TODO: Replace with actual API call to backend
-    setTimeout(() => {
-      // Mock calculation for now
-      const localCommission = parseFloat(formData.localSalesCount) * parseFloat(formData.averageSaleAmount) * 0.20;
-      const foreignCommission = parseFloat(formData.foreignSalesCount) * parseFloat(formData.averageSaleAmount) * 0.35;
-      const avalphaTechnologiesTotal = localCommission + foreignCommission;
-      
-      const competitorLocal = parseFloat(formData.localSalesCount) * parseFloat(formData.averageSaleAmount) * 0.02;
-      const competitorForeign = parseFloat(formData.foreignSalesCount) * parseFloat(formData.averageSaleAmount) * 0.0755;
-      const competitorTotal = competitorLocal + competitorForeign;
-      
-      setResults({
-        avalphaTechnologiesCommission: avalphaTechnologiesTotal.toFixed(2),
-        competitorCommission: competitorTotal.toFixed(2)
+  e.preventDefault();
+  setIsLoading(true);
+  setError('');
+  setResults(null);
+
+    try {
+      const response = await fetch("https://localhost:5000/Commision", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          LocalSalesCount: Number(formData.localSalesCount),
+          ForeignSalesCount: Number(formData.foreignSalesCount),
+          AverageSaleAmount: Number(formData.averageSaleAmount),
+        }),
       });
-      setIsLoading(false);
-    }, 1000);
-  };
+
+      if (!response.ok) {
+        const msg = await response.text();
+        setError(msg || "Backend returned an error");
+        setIsLoading(false);
+        return;
+      }
+
+      const data = await response.json();
+
+      setResults({
+        avalphaLocalCommission: data.avalphaLocalCommission ?? 0,
+        avalphaForeignCommission: data.avalphaForeignCommission ?? 0,
+        avalphaTotalCommission: data.avalphaTotalCommission ?? 0,
+        competitorLocalCommission: data.competitorLocalCommission ?? 0,
+        competitorForeignCommission: data.competitorForeignCommission ?? 0,
+        competitorTotalCommission: data.competitorTotalCommission ?? 0,
+      });
+
+      } catch (err) {
+        setError("Error connecting to backend");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
 
   return (
     <div className="App">
@@ -64,8 +81,8 @@ function App() {
             <form onSubmit={handleSubmit} className="calculator-form">
               <div className="form-group">
                 <label htmlFor="localSalesCount">Local Sales Count</label>
-                <input 
-                  type="number" 
+                <input
+                  type="number"
                   id="localSalesCount"
                   name="localSalesCount"
                   value={formData.localSalesCount}
@@ -77,8 +94,8 @@ function App() {
 
               <div className="form-group">
                 <label htmlFor="foreignSalesCount">Foreign Sales Count</label>
-                <input 
-                  type="number" 
+                <input
+                  type="number"
                   id="foreignSalesCount"
                   name="foreignSalesCount"
                   value={formData.foreignSalesCount}
@@ -87,11 +104,11 @@ function App() {
                   required
                 />
               </div>
-              
+
               <div className="form-group">
                 <label htmlFor="averageSaleAmount">Average Sale Amount (£)</label>
-                <input 
-                  type="number" 
+                <input
+                  type="number"
                   step="0.01"
                   id="averageSaleAmount"
                   name="averageSaleAmount"
@@ -102,49 +119,57 @@ function App() {
                 />
               </div>
 
-              <button 
-                type="submit" 
+              <button
+                type="submit"
                 className={`calculate-btn ${isLoading ? 'loading' : ''}`}
                 disabled={isLoading}
               >
                 {isLoading ? 'Calculating...' : 'Calculate Commission'}
               </button>
             </form>
+
+            {error && <p className="error-text">{error}</p>}
           </div>
 
-          <div className="results-section">
-            <h3>Commission Results</h3>
-            <div className="results-grid">
-              <div className="result-card avalpha-card">
-                <div className="result-header">
-                  <h4>Avalpha Technologies</h4>
-                  <span className="commission-rates">Local: 20% | Foreign: 35%</span>
+          {results && (
+            <div className="results-section">
+              <h3>Commission Results</h3>
+              <div className="results-grid">
+                <div className="result-card avalpha-card">
+                  <div className="result-header">
+                    <h4>Avalpha Technologies</h4>
+                    <span className="commission-rates">Local: 20% | Foreign: 35%</span>
+                  </div>
+                  <div className="result-amount">
+                    <p>Local = £{results.avalphaLocalCommission?.toFixed(2) ?? '0.00'}</p>
+                    <p>Foreign = £{results.avalphaForeignCommission?.toFixed(2) ?? '0.00'}</p>
+                    <p>Total = £{results.avalphaTotalCommission?.toFixed(2) ?? '0.00'}</p>
+                  </div>
                 </div>
-                <div className="result-amount">
-                  £{results.avalphaTechnologiesCommission}
+
+                <div className="result-card competitor-card">
+                  <div className="result-header">
+                    <h4>Competitor</h4>
+                    <span className="commission-rates">Local: 2% | Foreign: 7.55%</span>
+                  </div>
+                  <div className="result-amount">
+                    <p>Local = £{results.competitorLocalCommission?.toFixed(2) ?? '0.00'}</p>
+                    <p>Foreign = £{results.competitorForeignCommission?.toFixed(2) ?? '0.00'}</p>
+                    <p>Total = £{results.competitorTotalCommission?.toFixed(2) ?? '0.00'}</p>
+                  </div>
                 </div>
               </div>
-              
-              <div className="result-card competitor-card">
-                <div className="result-header">
-                  <h4>Competitor</h4>
-                  <span className="commission-rates">Local: 2% | Foreign: 7.55%</span>
+
+              {results.avalphaTotalCommission > 0 && (
+                <div className="advantage-indicator">
+                  <p className="advantage-text">
+                    Avalpha Technologies advantage: 
+                    <strong> £{(results.avalphaTotalCommission - results.competitorTotalCommission).toFixed(2)}</strong>
+                  </p>
                 </div>
-                <div className="result-amount">
-                  £{results.competitorCommission}
-                </div>
-              </div>
+              )}
             </div>
-            
-            {results.avalphaTechnologiesCommission > 0 && (
-              <div className="advantage-indicator">
-                <p className="advantage-text">
-                  Avalpha Technologies advantage: 
-                  <strong> £{(results.avalphaTechnologiesCommission - results.competitorCommission).toFixed(2)}</strong>
-                </p>
-              </div>
-            )}
-          </div>
+          )}
         </div>
       </main>
 
